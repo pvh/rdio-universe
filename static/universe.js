@@ -266,18 +266,8 @@ Universe.prototype.addStar = function(obj) {
 //var theta = 0;
 var cameraMoveTime = 1000;
 
-Universe.prototype.update = function() {
-  var self = this;
-  requestAnimationFrame(function() {
-    self.update();
-  });
 
-  for (var i = 0; i < this.stars.length; i++) {
-    var star = this.stars[i];
-    star.update()
-  }
-  this.zoom(0);
-  
+Universe.prototype.updateCamera = function() {
   this.rotation.x += (this.target.x - this.rotation.x) * 0.1;
   this.rotation.y += (this.target.y - this.rotation.y) * 0.1;
   this.distance += (this.distanceTarget - this.distance) * 0.03;
@@ -290,6 +280,7 @@ Universe.prototype.update = function() {
     if(!this.cameraPathStart) {
       this.cameraPathStart = time;
     }
+
     if(time - this.cameraPathStart > cameraMoveTime) {
       // final step, move to end of spline and unset cameraPath
       this.cameraPath = null;
@@ -313,6 +304,21 @@ Universe.prototype.update = function() {
   this.camera.position.x = this.cameraBase.x + this.distance * Math.sin(this.rotation.x) * Math.cos(this.rotation.y);
   this.camera.position.y = this.cameraBase.y + this.distance * Math.sin(this.rotation.y);
   this.camera.position.z = this.cameraBase.z + this.distance * Math.cos(this.rotation.x) * Math.cos(this.rotation.y);
+}
+
+Universe.prototype.update = function() {
+  var self = this;
+  requestAnimationFrame(function() {
+    self.update();
+  });
+
+  for (var i = 0; i < this.stars.length; i++) {
+    var star = this.stars[i];
+    star.update()
+  }
+  this.zoom(0);
+  
+  this.updateCamera();
 
   this.renderer.render(this.scene, this.camera);
 };
