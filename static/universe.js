@@ -26,14 +26,6 @@ Universe.prototype.createRenderer = function() {
   var ambientLight = new THREE.AmbientLight(0xcccccc);
   this.scene.addLight(ambientLight);
 
-  /*var directionalLight = new THREE.DirectionalLight( 0xffffff, 1.5 );
-  directionalLight.position.x = 1;
-  directionalLight.position.y = 1;
-  directionalLight.position.z = 0.5;
-  directionalLight.position.normalize();
-  this.scene.addLight( directionalLight );*/
-
-
   this.renderer = new THREE.WebGLRenderer({clearAlpha: 1});
   this.renderer.setSize( window.innerWidth, window.innerHeight );
 
