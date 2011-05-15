@@ -1,6 +1,8 @@
 function Camera() {
   var self = this;
 
+  this.lastUpdate = new Date().getTime();
+
   this.camera = new THREE.Camera(70, window.innerWidth / window.innerHeight, 1, 50000);
   this.cameraBase = {x: 0, y: 0, z: 0};
   this.rotation = {x: 0, y: 0};
@@ -48,8 +50,6 @@ Camera.prototype.zoomToDestination = function(destination) {
   this.cameraTargetPath = cameraTargetSpline;
 
   this.distanceTarget = 300;
-
-  star.showPlanets();
 };
 
 Camera.prototype.zoom = function(delta) {
