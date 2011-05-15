@@ -7,29 +7,18 @@ function Universe() {
 
   this.lastUpdate = new Date().getTime();
 
-  this.cameraBase = {x: 0, y: 0, z: 0};
-
-  this.camera = null;
   this.renderer = null;
   this.projector = null;
 
-  this.cameraPath = null;
-  this.cameraTargetPath = null;
-  this.cameraPathStartTime = null;
+  this.newCamera = new Camera();
 
   this.userInteracting = false;
 
   this.handlers = handlers.apply(this);
 
-  this.distanceTarget = 100000;
-  this.distance = this.distanceTarget;
-
   this.mouse = {x: 0, y: 0};
   this.mouseOnDown = {x: 0, y: 0};
-  this.rotation = {x: 0, y: 0};
-  this.target = {x: Math.PI * 3/2, y: Math.PI / 6.0};
   this.targetOnDown = {x: 0, y: 0};
-
   this.createRenderer();
 }
 
@@ -37,25 +26,11 @@ Universe.prototype.createRenderer = function() {
 
   var self = this;
 
-  this.camera = new THREE.Camera(70, window.innerWidth / window.innerHeight, 1, 50000);
-  this.camera.position.x = 0;
-  this.camera.position.y = 0;
-  this.camera.position.z = -5000;
-
-  // dummy object for the camera to track
-  var geometry = new THREE.Cube(1, 1, 1);
-  var material = new THREE.MeshBasicMaterial();
-  this.dummyTarget = new THREE.Mesh(geometry, material);
-  this.dummyTarget.materials[0].opacity = 0;
-  this.dummyTarget.position.x = 0;
-  this.dummyTarget.position.y = 0;
-  this.dummyTarget.position.z = 0;
-
   this.scene = new THREE.Scene();
   this.scene.fog = new THREE.FogExp2(0x000000, 0.00015);
 
-  this.scene.addObject(this.dummyTarget);
-  this.camera.target = this.dummyTarget;
+  this.scene.addObject(this.newCamera.dummyTarget);
+
 
   var ambientLight = new THREE.AmbientLight(0xcccccc);
   this.scene.addLight(ambientLight);
@@ -110,15 +85,9 @@ var handlers = function() {
 Universe.prototype.handleMouseWheel = function(event) {
   event.preventDefault();
   if(this.overRenderer) {
-    this.zoom(event.wheelDeltaY * 0.3);
+    this.newCamera.zoom(event.wheelDeltaY * 0.3);
   }
   return false;
-};
-
-Universe.prototype.zoom = function(delta) {
-  this.distanceTarget -= delta;
-  this.distanceTarget = this.distanceTarget > 10000 ? 10000 : this.distanceTarget;
-  this.distanceTarget = this.distanceTarget < 250 ? 250 : this.distanceTarget;
 };
 
 Universe.prototype.handleMouseOut = function(event) {
@@ -153,27 +122,48 @@ Universe.prototype.handleMouseUp = function(event) {
   document.body.style.cursor = 'auto';
 };
 
+Universe.prototype.zoomToStar = function(star) {
+  if (this.zoomedStar == star) return;
+
+  if(this.zoomedStar) {
+    this.zoomedStar.hidePlanets();
+  }
+  this.zoomedStar = star;
+
+  log('moving to star at position ',star.mesh.position);
+
+  var destination = [
+    star.mesh.position.x,
+    star.mesh.position.y,
+    star.mesh.position.z,
+  ];
+
+  this.newCamera.zoomToDestination(destination)
+
+  star.showPlanets();
+}
+
 var PI_HALF = Math.PI / 2;
 
 Universe.prototype.handleMouseMove = function(event) {
   this.mouse.x = - event.clientX;
   this.mouse.y = event.clientY;
 
-  var zoomDamp = this.distance/1000;
+  var zoomDamp = this.newCamera.distance/1000;
 
-  this.target.x = this.targetOnDown.x + (this.mouse.x - this.mouseOnDown.x) * 0.005 * zoomDamp;
-  this.target.y = this.targetOnDown.y + (this.mouse.y - this.mouseOnDown.y) * 0.005 * zoomDamp;
+  this.newCamera.target.x = this.targetOnDown.x + (this.mouse.x - this.mouseOnDown.x) * 0.005 * zoomDamp;
+  this.newCamera.target.y = this.targetOnDown.y + (this.mouse.y - this.mouseOnDown.y) * 0.005 * zoomDamp;
 
-  this.target.y = this.target.y > PI_HALF ? PI_HALF : this.target.y;
-  this.target.y = this.target.y < - PI_HALF ? - PI_HALF : this.target.y;
+  this.newCamera.target.y = this.newCamera.target.y > PI_HALF ? PI_HALF : this.newCamera.target.y;
+  this.newCamera.target.y = this.newCamera.target.y < - PI_HALF ? - PI_HALF : this.newCamera.target.y;
 };
 
 Universe.prototype.getIntersectingObject = function(event) {
   var vector = new THREE.Vector3( ( event.clientX / window.innerWidth ) * 2 - 1, - ( event.clientY / window.innerHeight ) * 2 + 1, 0.5 );
 
-  this.projector.unprojectVector( vector, this.camera );
+  this.projector.unprojectVector( vector, this.newCamera.camera );
 
-  var ray = new THREE.Ray( this.camera.position, vector.subSelf( this.camera.position ).normalize() );
+  var ray = new THREE.Ray( this.newCamera.camera.position, vector.subSelf( this.newCamera.camera.position ).normalize() );
 
   var intersects = ray.intersectScene( this.scene );
 
@@ -198,38 +188,12 @@ Universe.prototype.handleMouseDown = function(event) {
   this.mouseOnDown.x = - event.clientX;
   this.mouseOnDown.y = event.clientY;
 
-  this.targetOnDown.x = this.target.x;
-  this.targetOnDown.y = this.target.y;
+  this.targetOnDown.x = this.newCamera.target.x;
+  this.targetOnDown.y = this.newCamera.target.y;
 
   document.body.style.cursor = 'move';
 };
 
-Universe.prototype.zoomToStar = function(star) {
-  if (this.zoomedStar == star) return;
-
-  if(this.zoomedStar) {
-    this.zoomedStar.hidePlanets();
-  }
-  this.zoomedStar = star;
-
-  log('moving to star at position ',star.mesh.position);
-
-  var waypoints = [[this.cameraBase.x, this.cameraBase.y, this.cameraBase.z], [star.mesh.position.x, star.mesh.position.y, star.mesh.position.z]];
-  log('waypoints: ',waypoints);
-
-  var cameraSpline = new THREE.Spline();
-  cameraSpline.initFromArray(waypoints);
-  this.cameraPath = cameraSpline;
-
-  waypoints = [[this.dummyTarget.position.x, this.dummyTarget.position.y, this.dummyTarget.position.z], [star.mesh.position.x, star.mesh.position.y, star.mesh.position.z]];
-  var cameraTargetSpline = new THREE.Spline();
-  cameraTargetSpline.initFromArray(waypoints);
-  this.cameraTargetPath = cameraTargetSpline;
-
-  this.distanceTarget = 300;
-
-  star.showPlanets();
-};
 
 Universe.prototype.hasPlanet = function(key) {
   if(this.keyPlanetLookup[key]) {
@@ -263,49 +227,6 @@ Universe.prototype.addStar = function(obj) {
   this.keyStarLookup[obj.artistKey] = newStar;
 };
 
-//var theta = 0;
-var cameraMoveTime = 1000;
-
-
-Universe.prototype.updateCamera = function() {
-  this.rotation.x += (this.target.x - this.rotation.x) * 0.1;
-  this.rotation.y += (this.target.y - this.rotation.y) * 0.1;
-  this.distance += (this.distanceTarget - this.distance) * 0.03;
-
-  var time = new Date().getTime();
-  this.tdiff = (time - this.lastUpdate) / 1000;
-  this.lastUpdate = time;
-
-  if(this.cameraPath) {
-    if(!this.cameraPathStart) {
-      this.cameraPathStart = time;
-    }
-
-    if(time - this.cameraPathStart > cameraMoveTime) {
-      // final step, move to end of spline and unset cameraPath
-      this.cameraPath = null;
-      this.cameraPathStart = null;
-    } else {
-
-      var moment = (time - this.cameraPathStart) / cameraMoveTime;
-      var point = this.cameraPath.getPoint(moment);
-
-      this.cameraBase.x = point.x;
-      this.cameraBase.y = point.y;
-      this.cameraBase.z = point.z;
-
-      point = this.cameraTargetPath.getPoint(moment);
-      this.dummyTarget.position.x = point.x;
-      this.dummyTarget.position.y = point.y;
-      this.dummyTarget.position.z = point.z;
-    }
-  }
-
-  this.camera.position.x = this.cameraBase.x + this.distance * Math.sin(this.rotation.x) * Math.cos(this.rotation.y);
-  this.camera.position.y = this.cameraBase.y + this.distance * Math.sin(this.rotation.y);
-  this.camera.position.z = this.cameraBase.z + this.distance * Math.cos(this.rotation.x) * Math.cos(this.rotation.y);
-}
-
 Universe.prototype.update = function() {
   var self = this;
   requestAnimationFrame(function() {
@@ -316,9 +237,9 @@ Universe.prototype.update = function() {
     var star = this.stars[i];
     star.update()
   }
-  this.zoom(0);
+  this.newCamera.zoom(0);
   
-  this.updateCamera();
+  this.newCamera.update();
 
-  this.renderer.render(this.scene, this.camera);
+  this.renderer.render(this.scene, this.newCamera.camera);
 };
