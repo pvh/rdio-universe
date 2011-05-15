@@ -35,6 +35,17 @@ Universe.prototype.createRenderer = function() {
 
 };
 
+Universe.prototype.clickedObject = function(clickedObject) {
+  if(clickedObject) {
+    if(clickedObject.star) {
+      clickedObject.star.handleClick();
+      this.zoomToStar(clickedObject.star);
+    } else if(clickedObject.planet) {
+      clickedObject.planet.handleClick();
+    }
+  }
+}
+
 Universe.prototype.zoomToStar = function(star) {
   if (this.zoomedStar == star) return;
 

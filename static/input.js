@@ -66,14 +66,7 @@ Input.prototype.handleMouseUp = function(event) {
   var distanceY = Math.abs(event.clientY - this.mouseOnDown.y);
   if(distanceX < threshold || distanceY < threshold) {
     var clickedObject = this.getIntersectingObject(event);
-    if(clickedObject) {
-      if(clickedObject.star) {
-        clickedObject.star.handleClick();
-        this.universe.zoomToStar(clickedObject.star);
-      } else if(clickedObject.planet) {
-        clickedObject.planet.handleClick();
-      }
-    }
+    this.universe.clickedObject(clickedObject);
   }
 
   document.removeEventListener('mouseup', this.handlers.handleMouseUp, false);
